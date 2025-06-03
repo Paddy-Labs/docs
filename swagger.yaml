@@ -1,7 +1,7 @@
 openapi: 3.1.1
 info:
   title: PaddyLabs Subscription API
-  version: "20250520"
+  version: "20250603"
   description: paddylabs.ie
 servers:
   - url: http://localhost:3002
@@ -644,10 +644,7 @@ components:
         - frequency
         - email
         - card
-        - productId
-        - affiliateId
-        - campaignId
-        - cascade
+        - metadata
 
     SubscriptionInitResponse:
       type: object
