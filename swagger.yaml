@@ -1,7 +1,7 @@
-openapi: 3.1.1
+openapi: 3.1.3
 info:
   title: PaddyLabs Subscription API
-  version: "20250603"
+  version: '20250820'
   description: paddylabs.ie
 servers:
   - url: http://localhost:3002
@@ -20,114 +20,114 @@ tags:
 security:
   - ApiKeyAuth: []
 paths:
-  "/auth/login":
+  '/auth/login':
     post:
       tags:
         - auth
-      operationId: "authLogin"
+      operationId: 'authLogin'
       description: Login customer
       requestBody:
         content:
           application/json:
             schema:
-              "$ref": "#/components/schemas/AuthLoginBody"
+              '$ref': '#/components/schemas/AuthLoginBody'
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/AuthLoginResponse"
-        "400":
+                '$ref': '#/components/schemas/AuthLoginResponse'
+        '400':
           description: Client error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "403":
+                '$ref': '#/components/schemas/Error'
+        '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "500":
+                '$ref': '#/components/schemas/Error'
+        '500':
           description: Server error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
+                '$ref': '#/components/schemas/Error'
 
-  "/auth/forgot":
+  '/auth/forgot':
     post:
       tags:
         - auth
-      operationId: "authForgot"
+      operationId: 'authForgot'
       description: Forgot password
       requestBody:
         content:
           application/json:
             schema:
-              "$ref": "#/components/schemas/AuthForgotBody"
+              '$ref': '#/components/schemas/AuthForgotBody'
       responses:
-        "200":
+        '200':
           description: Success
-        "400":
+        '400':
           description: Client error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "403":
+                '$ref': '#/components/schemas/Error'
+        '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "500":
+                '$ref': '#/components/schemas/Error'
+        '500':
           description: Server error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
+                '$ref': '#/components/schemas/Error'
 
-  "/auth/reset":
+  '/auth/reset':
     post:
       tags:
         - auth
-      operationId: "authReset"
+      operationId: 'authReset'
       description: Reset password
       requestBody:
         content:
           application/json:
             schema:
-              "$ref": "#/components/schemas/AuthResetBody"
+              '$ref': '#/components/schemas/AuthResetBody'
       responses:
-        "200":
+        '200':
           description: Success
-        "400":
+        '400':
           description: Client error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "403":
+                '$ref': '#/components/schemas/Error'
+        '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "500":
+                '$ref': '#/components/schemas/Error'
+        '500':
           description: Server error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
+                '$ref': '#/components/schemas/Error'
 
-  "/auth/lookup":
+  '/auth/lookup':
     get:
       tags:
         - auth
-      operationId: "authLookup"
+      operationId: 'authLookup'
       description: Lookup subscription
       parameters:
         - name: id
@@ -137,69 +137,106 @@ paths:
             type: string
           required: true
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/AuthLookupResponse"
-        "400":
+                '$ref': '#/components/schemas/AuthLookupResponse'
+        '400':
           description: Client error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "403":
+                '$ref': '#/components/schemas/Error'
+        '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "500":
+                '$ref': '#/components/schemas/Error'
+        '500':
           description: Server error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
+                '$ref': '#/components/schemas/Error'
 
-  "/init":
+  '/init':
     post:
       tags:
         - subscription
-      operationId: "initSubscription"
+      operationId: 'initSubscription'
       description: Create subscription
       requestBody:
         content:
           application/json:
             schema:
-              "$ref": "#/components/schemas/SubscriptionInitBody"
+              '$ref': '#/components/schemas/SubscriptionInitBody'
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/SubscriptionInitResponse"
-        "400":
+                '$ref': '#/components/schemas/SubscriptionInitResponse'
+        '400':
           description: Client error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "403":
+                '$ref': '#/components/schemas/SubscriptionInitError'
+        '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "500":
+                '$ref': '#/components/schemas/Error'
+        '500':
           description: Server error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
+                '$ref': '#/components/schemas/Error'
 
-  "/cancel":
+  '/init/3ds':
+    post:
+      tags:
+        - subscription
+      operationId: 'validate3DSSubscription'
+      description: Validates 3DS subscription
+      requestBody:
+        content:
+          application/json:
+            schema:
+              '$ref': '#/components/schemas/SubscriptionValidate3DSBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/SubscriptionValidate3DSResponse'
+        '400':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/SubscriptionValidate3DSError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+
+  '/cancel':
     post:
       parameters:
         - name: email
@@ -218,33 +255,40 @@ paths:
               - ROCKETGATE
               - PAYSIGHT
             example: PAYSIGHT
+        - name: domainSendCancelEmail
+          in: query
+          description: Domain to restrict send cancel email
+          required: false
+          schema:
+            type: string
+            example: ebkreads.com
       tags:
         - subscription
-      operationId: "cancelSubscription"
+      operationId: 'cancelSubscription'
       description: Cancel subscription
       responses:
-        "200":
+        '200':
           description: Success
-        "400":
+        '400':
           description: Client error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "403":
+                '$ref': '#/components/schemas/Error'
+        '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "500":
+                '$ref': '#/components/schemas/Error'
+        '500':
           description: Server error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
+                '$ref': '#/components/schemas/Error'
 
-  "/transactions":
+  '/transactions':
     get:
       parameters:
         - name: limit
@@ -277,37 +321,51 @@ paths:
               - ROCKETGATE
               - PAYSIGHT
             example: PAYSIGHT
+        - name: startDate
+          in: query
+          description: Start date timestamp to pick subs
+          required: true
+          schema:
+            type: string
+            example: 2025-07-24T00:00:00Z
+        - name: endDate
+          in: query
+          description: End date timestamp to pick subs
+          required: true
+          schema:
+            type: string
+            example: 2025-07-28T23:59:59Z
       tags:
         - transaction
-      operationId: "getTransactions"
+      operationId: 'getTransactions'
       description: Get transactions
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/GetTransactionsResponse"
-        "400":
+                '$ref': '#/components/schemas/GetTransactionsResponse'
+        '400':
           description: Client error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "403":
+                '$ref': '#/components/schemas/Error'
+        '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "500":
+                '$ref': '#/components/schemas/Error'
+        '500':
           description: Server error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
+                '$ref': '#/components/schemas/Error'
 
-  "/search":
+  '/search':
     get:
       parameters:
         - name: email
@@ -319,33 +377,33 @@ paths:
             example: dev@paddylabs.ie
       tags:
         - subscription
-      operationId: "searchSubscription"
+      operationId: 'searchSubscription'
       description: Searches subscription
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/SubscriptionSearchResponse"
-        "400":
+                '$ref': '#/components/schemas/SubscriptionSearchResponse'
+        '400':
           description: Client error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "403":
+                '$ref': '#/components/schemas/Error'
+        '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
-        "500":
+                '$ref': '#/components/schemas/Error'
+        '500':
           description: Server error
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Error"
+                '$ref': '#/components/schemas/Error'
 
 components:
   securitySchemes:
@@ -377,6 +435,108 @@ components:
         - error
         - message
         - path
+
+    SubscriptionInitError:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date
+        status:
+          type: number
+        error:
+          type: string
+        message:
+          type: string
+        paysightSession:
+          type: string
+        partnerSession:
+          type: string
+        subscribeSuccess:
+          type: boolean
+        chargeSuccess:
+          type: boolean
+        info:
+          type: string
+        email:
+          type: string
+        orderId:
+          type: number
+        transactionId:
+          type: string
+        descriptor:
+          type: string
+        mid:
+          type: string
+        amount:
+          type: number
+        statusId:
+          type: number
+        path:
+          type: string
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - paysightSession
+        - partnerSession
+        - subscribeSuccess
+        - chargeSuccess
+        - info
+        - email
+        - orderId
+        - transactionId
+        - mid
+        - amount
+        - path
+
+    SubscriptionValidate3DSError:
+      type: object
+      properties:
+        status:
+          type: number
+        error:
+          type: string
+        message:
+          type: string
+        paysightSession:
+          type: string
+        partnerSession:
+          type: string
+        subscribeSuccess:
+          type: boolean
+        chargeSuccess:
+          type: boolean
+        info:
+          type: string
+        email:
+          type: string
+        orderId:
+          type: number
+        transactionId:
+          type: string
+        descriptor:
+          type: string
+        mid:
+          type: string
+        amount:
+          type: number
+        statusId:
+          type: number
+      required:
+        - error
+        - message
+        - paysightSession
+        - partnerSession
+        - subscribeSuccess
+        - chargeSuccess
+        - info
+        - email
+        - orderId
+        - transactionId
+        - mid
+        - amount
 
     AuthLoginBody:
       type: object
@@ -505,10 +665,10 @@ components:
               merchant_account:
                 type:
                   - string
-                  - "null"
+                  - 'null'
               udf01:
                 type: string
-                example: "standard"
+                example: 'standard'
               udf02:
                 type: object
             required:
@@ -531,11 +691,11 @@ components:
             startCursor:
               type:
                 - string
-                - "null"
+                - 'null'
             endCursor:
               type:
                 - string
-                - "null"
+                - 'null'
           required:
             - hasPreviousPage
             - hasNextPage
@@ -576,19 +736,19 @@ components:
           properties:
             number:
               type: string
-              example: "4242424242424242"
+              example: '4242424242424242'
             month:
               type: string
-              example: "01"
+              example: '01'
             year:
               type: string
-              example: "2030"
+              example: '2030'
             cvv:
               type: string
-              example: "333"
+              example: '333'
             bin:
               type: string
-              example: "424242"
+              example: '424242'
             firstName:
               type: string
               example: Example
@@ -598,12 +758,33 @@ components:
             country:
               type: string
               example: US
+        threeDSecure:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              example: true
+        address:
+          type: object
+          properties:
+            street:
+              type: string
+              example: 'St 12 Apt 456'
+            city:
+              type: string
+              example: 'New York'
+            zip:
+              type: string
+              example: '80088'
+            country:
+              type: string
+              example: 'US'
         metadata:
           type: object
           properties:
             productId:
               type: string
-              example: "8401"
+              example: '8401'
             affiliateId:
               type: number
               example: 0
@@ -624,7 +805,7 @@ components:
               example: false
             mid:
               type: string
-              example: "644"
+              example: '644'
             udf01:
               type: string
               example: standard
@@ -655,10 +836,123 @@ components:
           type: string
         error:
           type: string
+        paysightSession:
+          type: string
+        partnerSession:
+          type: string
+        subscribeSuccess:
+          type: boolean
+        chargeSuccess:
+          type: boolean
+        info:
+          type: string
+        email:
+          type: string
+        orderId:
+          type: number
+        transactionId:
+          type: string
+        descriptor:
+          type: string
+        mid:
+          type: string
+        amount:
+          type: number
+        statusId:
+          type: number
+        redirectUrl:
+          type: [string, 'null']
+        threeDSecureId:
+          type: string
+        threeDSecureTransactionId:
+          type: string
+
       required:
         - status
         - message
         - error
+        - paysightSession
+        - partnerSession
+        - subscribeSuccess
+        - chargeSuccess
+        - info
+        - email
+        - orderId
+        - transactionId
+        - mid
+        - amount
+        - redirectUrl
+
+    SubscriptionValidate3DSBody:
+      type: object
+      properties:
+        productId:
+          type: string
+          example: '8401'
+        threeDSecureTransactionId:
+          type: string
+        threeDSecureId:
+          type: string
+          example: 'tds_visa_56bcae777965'
+        partnerSession:
+          type: string
+          example: '2025081915421900008456285310'
+      required:
+        - productId
+        - threeDSecureTransactionId
+        - threeDSecureId
+        - partnerSession
+
+    SubscriptionValidate3DSResponse:
+      type: object
+      properties:
+        status:
+          type: number
+        message:
+          type: string
+        error:
+          type: string
+        paysightSession:
+          type: string
+        partnerSession:
+          type: string
+        subscribeSuccess:
+          type: boolean
+        chargeSuccess:
+          type: boolean
+        info:
+          type: string
+        email:
+          type: string
+        orderId:
+          type: number
+        transactionId:
+          type: string
+        descriptor:
+          type: string
+        mid:
+          type: string
+        amount:
+          type: number
+        statusId:
+          type: number
+        redirectUrl:
+          type: [string, 'null']
+      required:
+        - status
+        - message
+        - error
+        - paysightSession
+        - partnerSession
+        - subscribeSuccess
+        - chargeSuccess
+        - info
+        - email
+        - orderId
+        - transactionId
+        - mid
+        - amount
+        - redirectUrl
 
     SubscriptionSearchResponse:
       type: object
