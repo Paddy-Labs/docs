@@ -162,6 +162,52 @@ paths:
               schema:
                 '$ref': '#/components/schemas/Error'
 
+  '/tracking':
+    post:
+      tags:
+        - tracking
+      operationId: 'trackEvent'
+      description: >
+        Forwards a landing-page funnel event to the matching tracking Firehose
+        delivery stream. Only the envelope (api_name, session_id) is validated;
+        all remaining fields pass through unchanged. Fire-and-forget: delivery
+        failures are logged and still return 202.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              '$ref': '#/components/schemas/TrackingEventBody'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+        '400':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+
   '/init':
     post:
       tags:
@@ -413,6 +459,35 @@ components:
       name: x-api-key
 
   schemas:
+    TrackingEventBody:
+      type: object
+      description: >
+        Flat funnel event; fields besides api_name and session_id depend on
+        api_name and pass through to the data lake unvalidated.
+      properties:
+        api_name:
+          type: string
+          enum:
+            - view
+            - form
+            - submit
+            - transaction
+        session_id:
+          type: string
+          format: uuid
+        _metadata:
+          type: object
+          properties:
+            stored_at:
+              type: string
+              format: date-time
+            script_version:
+              type: string
+      required:
+        - api_name
+        - session_id
+      additionalProperties: true
+
     Error:
       type: object
       properties:
@@ -726,6 +801,8 @@ components:
             - SEMESTER
             - ANNUAL
             - LIFETIME
+            - CUSTOM
+            - UNKNOWN
           example: MONTH
         email:
           type: string
@@ -764,6 +841,9 @@ components:
             enabled:
               type: boolean
               example: true
+            cancelOnFail:
+              type: boolean
+              example: false
         address:
           type: object
           properties:
