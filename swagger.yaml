@@ -17,6 +17,8 @@ tags:
     description: Transaction
   - name: subscription
     description: Subscription
+  - name: legacy-checkout
+    description: Legacy checkout
 security:
   - ApiKeyAuth: []
 paths:
@@ -177,6 +179,53 @@ paths:
           application/json:
             schema:
               '$ref': '#/components/schemas/TrackingEventBody'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+        '400':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+
+  '/legacy-checkout-page-load':
+    post:
+      tags:
+        - legacy-checkout
+      operationId: 'legacyCheckoutPageLoad'
+      description: >
+        Reports a checkout page load from a legacy landing page. The landing
+        page domain is derived from landing_page_url; loads from domains that
+        are not shared with kyraSMS are accepted and ignored. Fire-and-forget:
+        the forward happens after the response, and a failed forward is logged
+        and still returns 202.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              '$ref': '#/components/schemas/LegacyCheckoutPageLoadBody'
       responses:
         '202':
           description: Accepted
@@ -487,6 +536,38 @@ components:
         - api_name
         - session_id
       additionalProperties: true
+
+    LegacyCheckoutPageLoadBody:
+      type: object
+      description: >
+        Checkout page load from a legacy landing page. amount accepts a number
+        or a numeric string; an empty string is treated as absent.
+      properties:
+        session_id:
+          type: string
+        landing_page_url:
+          type: string
+          format: uri
+          description: >
+            Full landing page URL. Its hostname, with any leading www. removed,
+            decides whether the load is forwarded.
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        phone:
+          type: string
+        product_name:
+          type: string
+        amount:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+      required:
+        - session_id
+        - landing_page_url
 
     Error:
       type: object
