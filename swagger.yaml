@@ -17,8 +17,6 @@ tags:
     description: Transaction
   - name: subscription
     description: Subscription
-  - name: legacy-checkout
-    description: Legacy checkout
 security:
   - ApiKeyAuth: []
 paths:
@@ -210,34 +208,30 @@ paths:
               schema:
                 '$ref': '#/components/schemas/Error'
 
-  '/legacy-checkout-page-load':
+  '/ip-validation':
     post:
       tags:
-        - legacy-checkout
-      operationId: 'legacyCheckoutPageLoad'
+        - ip-validation
+      operationId: 'validateIP'
       description: >
-        Reports a checkout page load from a legacy landing page. The landing
-        page domain is derived from landing_page_url; loads from domains that
-        are not shared with kyraSMS are accepted and ignored. Fire-and-forget:
-        the forward happens after the response, and a failed forward is logged
-        and still returns 202.
+        Scores a visitor IP against the approve-mode rules and returns reforge's
+        ValidationInfo. Vendor data is cached in DynamoDB for one hour, keyed on
+        the IP alone, and the target country is compared at read time. Vendor
+        failure, malformed vendor payloads and missing configuration all return
+        200 with validation_success false and the cautious verdict, so a landing
+        page can always render.
       requestBody:
         content:
           application/json:
             schema:
-              '$ref': '#/components/schemas/LegacyCheckoutPageLoadBody'
+              '$ref': '#/components/schemas/IPValidationBody'
       responses:
-        '202':
-          description: Accepted
+        '200':
+          description: Scored verdict, or the fail-closed payload
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                required:
-                  - ok
+                '$ref': '#/components/schemas/ValidationInfo'
         '400':
           description: Client error
           content:
@@ -386,54 +380,161 @@ paths:
   '/transactions':
     get:
       parameters:
-        - name: limit
-          in: query
-          description: Pagination limit
-          schema:
-            type: number
-            example: 20
-        - name: direction
-          in: query
-          description: Pagination direction
-          schema:
-            type: string
-            enum:
-              - previous
-              - next
-            example: next
-        - name: cursor
-          in: query
-          description: Pagination cursor
-          schema:
-            type: string
         - name: gateway
           in: query
-          description: Gateway
           required: true
+          description: >-
+            Payment gateway the transaction's customer belongs to.
+            Case-insensitive.
           schema:
             type: string
             enum:
               - ROCKETGATE
               - PAYSIGHT
             example: PAYSIGHT
+        - name: status
+          in: query
+          required: false
+          style: form
+          explode: true
+          description: >-
+            Transaction status to include. Repeat the parameter to match any of
+            several statuses, e.g. `status=APPROVED&status=PENDING`.
+
+
+            Defaults to `APPROVED` when the parameter is omitted, so an
+            unfiltered call returns approved transactions only.
+            Case-insensitive.
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - PENDING
+                - APPROVED
+                - DECLINED
+                - VOIDED
+                - REFUNDED
+                - CHARGEBACK
+                - CHARGEBACK_ALERT
+                - UNKNOWN
+                - SUCCEEDED
+            default:
+              - APPROVED
+          example:
+            - APPROVED
+            - PENDING
+        - name: declineSalvage
+          in: query
+          required: false
+          style: form
+          explode: true
+          description: >-
+            Decline-salvage state to include. Repeat the parameter to match any
+            of several values, e.g.
+            `declineSalvage=false&declineSalvage=null`.
+
+
+            This is a three-state value. `true` and `false` are recorded only by
+            PAYSIGHT flows; `null` means no value was ever recorded, which is
+            the case for every ROCKETGATE transaction. `null` is therefore a
+            distinct state and is never treated as equivalent to `false`.
+
+
+            Defaults to `false` when the parameter is omitted. Because ROCKETGATE
+            transactions are always `null`, that default excludes them — pass
+            `any` or `null` explicitly to see them.
+
+
+            Pass `any` to disable the filter and return all three states. `any`
+            takes precedence when combined with other values.
+            Case-insensitive.
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+                - 'null'
+                - 'any'
+            default:
+              - 'false'
+          example:
+            - 'false'
+            - 'null'
         - name: startDate
           in: query
-          description: Start date timestamp to pick subs
-          required: true
+          required: false
+          description: >-
+            Inclusive lower bound on the transaction's creation timestamp
+            (ISO 8601). Unbounded when omitted.
           schema:
             type: string
+            format: date-time
             example: 2025-07-24T00:00:00Z
         - name: endDate
           in: query
-          description: End date timestamp to pick subs
-          required: true
+          required: false
+          description: >-
+            Inclusive upper bound on the transaction's creation timestamp
+            (ISO 8601). Unbounded when omitted.
           schema:
             type: string
+            format: date-time
             example: 2025-07-28T23:59:59Z
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of transactions per page.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+            example: 20
+        - name: cursor
+          in: query
+          required: false
+          description: >-
+            Opaque cursor identifying the page boundary, taken from
+            `metadata.startCursor` or `metadata.endCursor` of a previous
+            response.
+          schema:
+            type: string
+            format: uuid
+        - name: direction
+          in: query
+          required: false
+          description: >-
+            Whether to page forwards or backwards from `cursor`. Ignored unless
+            `cursor` is also supplied. Case-insensitive.
+          schema:
+            type: string
+            enum:
+              - previous
+              - next
+            default: next
+            example: next
       tags:
         - transaction
       operationId: 'getTransactions'
-      description: Get transactions
+      summary: List initial standard transactions
+      description: >-
+        Returns initial checkout transactions, newest first by creation time.
+
+
+        Beyond the query filters below, the endpoint always constrains results
+        to transactions that are of type `AUTH_ONLY` or `SALE`, have a billing
+        type of `INITIAL`, and carry `udf01=standard`. Rebills, refunds and
+        non-standard traffic are therefore never returned, regardless of the
+        filters supplied.
+
+
+        Filters combine with AND; repeating a single parameter matches any of
+        its values (OR). `status` and `declineSalvage` both apply a default when
+        omitted, so an unfiltered call is narrower than it may appear — see each
+        parameter for its fallback.
       responses:
         '200':
           description: Success
@@ -537,37 +638,80 @@ components:
         - session_id
       additionalProperties: true
 
-    LegacyCheckoutPageLoadBody:
+    IPValidationBody:
+      type: object
+      properties:
+        ip:
+          type: string
+          description: Visitor IPv4 or IPv6 address
+          example: '24.48.0.1'
+        targetCountry:
+          type: string
+          description: >
+            ISO-3166 alpha-2 code for the landing page's target country,
+            uppercased server side. Per landing page, never defaulted.
+          example: 'US'
+      required:
+        - ip
+        - targetCountry
+
+    ValidationInfo:
       type: object
       description: >
-        Checkout page load from a legacy landing page. amount accepts a number
-        or a numeric string; an empty string is treated as absent.
+        Shape owned by reforge-nextjs/src/lib/session.ts. Spread straight into
+        the reforge session with no mapping.
       properties:
-        session_id:
+        validation_success:
+          type: boolean
+          description: False when the verdict came from the fail-closed fallback
+        validation_valid:
+          type: boolean
+          description: True renders the classic variant, false renders approval
+        validation_target_country:
           type: string
-        landing_page_url:
+        validation_vpn:
+          type: boolean
+        validation_proxy:
+          type: boolean
+        validation_tor:
+          type: boolean
+        validation_relay:
+          type: boolean
+        validation_monitor:
+          type: boolean
+        validation_country_code:
           type: string
-          format: uri
-          description: >
-            Full landing page URL. Its hostname, with any leading www. removed,
-            decides whether the load is forwarded.
-        email:
+          description: Detected country, or 'Unknown' on the fallback path
+        validation_connection_type:
           type: string
-          format: email
-        name:
+        validation_issues:
+          type: array
+          items:
+            type: string
+        validation_reason:
           type: string
-        phone:
-          type: string
-        product_name:
-          type: string
-        amount:
-          type: number
-          minimum: 0
-        currency:
+          description: Issues joined with ', ', empty string when valid
+        validation_timestamp:
+          type: integer
+          format: int64
+          description: Epoch milliseconds
+        connection_isp:
           type: string
       required:
-        - session_id
-        - landing_page_url
+        - validation_success
+        - validation_valid
+        - validation_target_country
+        - validation_vpn
+        - validation_proxy
+        - validation_tor
+        - validation_relay
+        - validation_monitor
+        - validation_country_code
+        - validation_connection_type
+        - validation_issues
+        - validation_reason
+        - validation_timestamp
+        - connection_isp
 
     Error:
       type: object
@@ -810,6 +954,29 @@ components:
               approvedAmount:
                 type: number
                 example: 39.99
+              status:
+                type: string
+                description: Status of the transaction.
+                enum:
+                  - PENDING
+                  - APPROVED
+                  - DECLINED
+                  - VOIDED
+                  - REFUNDED
+                  - CHARGEBACK
+                  - CHARGEBACK_ALERT
+                  - UNKNOWN
+                  - SUCCEEDED
+                example: APPROVED
+              declineSalvage:
+                type:
+                  - boolean
+                  - 'null'
+                description: >-
+                  Decline-salvage state of the transaction. `null` means no
+                  value was recorded, which is always the case for ROCKETGATE
+                  transactions, and is distinct from `false`.
+                example: false
               country:
                 type: string
                 example: US
@@ -831,6 +998,8 @@ components:
               - transId
               - date
               - approvedAmount
+              - status
+              - declineSalvage
               - country
               - email
               - cust_id_ext
@@ -882,8 +1051,6 @@ components:
             - SEMESTER
             - ANNUAL
             - LIFETIME
-            - CUSTOM
-            - UNKNOWN
           example: MONTH
         email:
           type: string
@@ -946,6 +1113,9 @@ components:
             productId:
               type: string
               example: '8401'
+            source:
+              type: string
+              example: reforge
             affiliateId:
               type: number
               example: 0
