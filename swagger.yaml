@@ -927,6 +927,11 @@ components:
         subscriptionRebillDate:
           type: number
           format: unix timestamp
+        declineSalvage:
+          type: boolean
+          description: >
+            Decline-salvage flag of the subscription's most recent transaction
+            that carries one. False when no transaction has a value.
       required:
         - id
         - status
@@ -937,6 +942,7 @@ components:
         - email
         - subscriptionDate
         - subscriptionRebillDate
+        - declineSalvage
 
     GetTransactionsResponse:
       type: object
