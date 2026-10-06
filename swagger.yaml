@@ -377,6 +377,74 @@ paths:
               schema:
                 '$ref': '#/components/schemas/Error'
 
+  '/refund':
+    post:
+      tags:
+        - subscription
+      operationId: 'refundTransaction'
+      description: >
+        Refund a transaction through its payment gateway (PaySight or
+        RocketGate). Internal endpoint for the customer service chatbot. The
+        transaction must belong to the given customer email, otherwise it is
+        reported as not found. Omit amount for a full refund. On success the
+        original transaction is marked REFUNDED, so it cannot be refunded
+        again. Besides the shared x-api-key, requires the x-refund-api-key
+        header to match REFUND_API_KEY; refused for everyone while that is not
+        configured. Rate limited to 10 requests per minute and 100 per 24
+        hours per API key.
+      parameters:
+        - name: x-refund-api-key
+          in: header
+          required: true
+          description: Refund secret (REFUND_API_KEY), separate from x-api-key
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              '$ref': '#/components/schemas/RefundBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/RefundResponse'
+        '400':
+          description: >
+            Client error: invalid body, transaction not refundable, amount
+            above the transaction amount, or the gateway rejected the refund
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '403':
+          description: >
+            Missing or wrong x-api-key or x-refund-api-key, or REFUND_API_KEY
+            is not configured
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '404':
+          description: Transaction not found for this customer
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '429':
+          description: >
+            Rate limit exceeded: at most 10 refunds per minute, or 100 per 24
+            hours, per API key
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+
   '/transactions':
     get:
       parameters:
@@ -1290,6 +1358,50 @@ components:
         - mid
         - amount
         - redirectUrl
+
+    RefundBody:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+          description: Internal transaction id
+        email:
+          type: string
+          format: email
+          description: Email of the customer who owns the transaction
+          example: dev@paddylabs.ie
+        amount:
+          type: number
+          exclusiveMinimum: 0
+          description: >
+            Amount to refund in the transaction currency, as a decimal. Must
+            not exceed the transaction amount. Omit for a full refund. At most
+            two decimals.
+          multipleOf: 0.01
+          example: 12.99
+      required:
+        - transactionId
+        - email
+
+    RefundResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - REFUNDED
+        refundedAmount:
+          type: number
+          description: Decimal amount sent to the gateway for refund
+          example: 12.99
+      required:
+        - transactionId
+        - status
+        - refundedAmount
 
     SubscriptionSearchResponse:
       type: object
