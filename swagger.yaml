@@ -388,17 +388,15 @@ paths:
         transaction must belong to the given customer email, otherwise it is
         reported as not found. Omit amount for a full refund. On success the
         original transaction is marked REFUNDED, so it cannot be refunded
-        again. Besides the shared x-api-key, requires the x-refund-api-key
-        header to match REFUND_API_KEY; refused for everyone while that is not
-        configured. Rate limited to 10 requests per minute and 100 per 24
-        hours per API key.
-      parameters:
-        - name: x-refund-api-key
-          in: header
-          required: true
-          description: Refund secret (REFUND_API_KEY), separate from x-api-key
-          schema:
-            type: string
+        again. Identify the transaction by its gateway id,
+        externalTransactionId, from GET /refund/transactions. Besides the
+        shared x-api-key, requires the x-refund-api-key header to match
+        REFUND_API_KEY; refused for everyone while that is not configured.
+        Rate limited to 10 requests per minute and 100 per 24 hours per API
+        key.
+      security:
+        - ApiKeyAuth: []
+          RefundApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -414,8 +412,10 @@ paths:
                 '$ref': '#/components/schemas/RefundResponse'
         '400':
           description: >
-            Client error: invalid body, transaction not refundable, amount
-            above the transaction amount, or the gateway rejected the refund
+            Client error: invalid body (including an amount with more than two
+            decimals), transaction not refundable (already refunded, or still
+            pending), amount above the
+            transaction amount, or refunds are not available
           content:
             application/json:
               schema:
@@ -429,7 +429,18 @@ paths:
               schema:
                 '$ref': '#/components/schemas/Error'
         '404':
-          description: Transaction not found for this customer
+          description: >
+            Transaction not found for this customer (message is always
+            "Transaction not found.")
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '409':
+          description: >
+            More than one refundable transaction of this customer has that
+            externalTransactionId (TransactionAmbiguousExternalIdError); none
+            was refunded
           content:
             application/json:
               schema:
@@ -438,6 +449,70 @@ paths:
           description: >
             Rate limit exceeded: at most 10 refunds per minute, or 100 per 24
             hours, per API key
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '502':
+          description: >
+            The payment gateway failed or rejected the refund (error
+            RefundGatewayError). The message is generic; the gateway's reason
+            is logged, not returned. The transaction is left unchanged.
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+
+  '/refund/transactions':
+    get:
+      tags:
+        - subscription
+      operationId: 'listRefundableTransactions'
+      security:
+        - ApiKeyAuth: []
+          RefundApiKeyAuth: []
+      description: >
+        List the transactions of a customer that can still be refunded, newest
+        first, so the customer service chatbot can pick the
+        externalTransactionId to send to POST /refund. Only approved sales
+        and auth-only charges with an amount above zero are listed; pending
+        charges (which may still fail) and refunded ones are left out.
+        Needs the same x-refund-api-key as POST /refund. Rate limited to 30
+        requests per minute per API key, separately from refunds.
+      parameters:
+        - name: email
+          in: query
+          required: true
+          description: Customer email (case-insensitive)
+          schema:
+            type: string
+            format: email
+            example: dev@paddylabs.ie
+      responses:
+        '200':
+          description: Success (an empty list when nothing is refundable)
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/RefundableTransactionsResponse'
+        '400':
+          description: Invalid email, or refunds are not available
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '403':
+          description: >
+            Missing or wrong x-api-key or x-refund-api-key, or REFUND_API_KEY
+            is not configured
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded, at most 30 lookups per minute
         '500':
           description: Server error
           content:
@@ -675,6 +750,13 @@ components:
       type: apiKey
       in: header
       name: x-api-key
+    RefundApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-refund-api-key
+      description: >
+        Refund secret (REFUND_API_KEY), separate from x-api-key. Required, on
+        top of x-api-key, by POST /refund and GET /refund/transactions.
 
   schemas:
     TrackingEventBody:
@@ -1362,10 +1444,12 @@ components:
     RefundBody:
       type: object
       properties:
-        transactionId:
+        externalTransactionId:
           type: string
-          format: uuid
-          description: Internal transaction id
+          minLength: 1
+          description: >
+            The payment gateway's transaction id (PaySight messageId or
+            RocketGate transaction id), as returned by GET /refund/transactions
         email:
           type: string
           format: email
@@ -1381,7 +1465,7 @@ components:
           multipleOf: 0.01
           example: 12.99
       required:
-        - transactionId
+        - externalTransactionId
         - email
 
     RefundResponse:
@@ -1390,6 +1474,10 @@ components:
         transactionId:
           type: string
           format: uuid
+          description: Our internal id of the refunded transaction
+        externalTransactionId:
+          type: string
+          description: The payment gateway's transaction id
         status:
           type: string
           enum:
@@ -1400,8 +1488,66 @@ components:
           example: 12.99
       required:
         - transactionId
+        - externalTransactionId
         - status
         - refundedAmount
+
+    RefundableTransactionsResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            type: object
+            properties:
+              transactionId:
+                type: string
+                format: uuid
+                description: Our internal id, for reference
+              externalTransactionId:
+                type: string
+                description: >
+                  The payment gateway's transaction id; pass as
+                  externalTransactionId to POST /refund
+              date:
+                type: string
+                format: date-time
+                description: When the customer was charged
+              amount:
+                type: number
+                description: Decimal amount in the transaction currency
+                example: 19.99
+              currency:
+                type: string
+                example: EUR
+              status:
+                type: string
+                enum:
+                  - APPROVED
+              domain:
+                type: string
+                description: Site the customer bought on
+                example: example.com
+              card:
+                type: object
+                properties:
+                  brand:
+                    type: string
+                    example: VISA
+                  lastFour:
+                    type: string
+                    example: '4242'
+            required:
+              - transactionId
+              - externalTransactionId
+              - date
+              - amount
+              - currency
+              - status
+              - domain
+              - card
+      required:
+        - transactions
 
     SubscriptionSearchResponse:
       type: object
