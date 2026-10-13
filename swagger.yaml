@@ -1241,13 +1241,26 @@ components:
               example: US
         threeDSecure:
           type: object
+          description: >-
+            3DS settings. Prefer `dynamic: true` (adaptive 3DS): PaySight decides
+            whether a challenge is needed. Show the 3DS UI only when the response
+            includes `threeDSecureId` (usually with `info: "3DS-ACTION-REQUIRED"`),
+            then complete it via `POST /init/3ds`. With no `threeDSecureId` the
+            payment has already continued (frictionless or 3DS skipped).
+            When `dynamic` is true, `enabled` is ignored.
           properties:
+            dynamic:
+              type: boolean
+              description: Adaptive 3DS. PaySight decides whether to challenge.
+              example: true
             enabled:
               type: boolean
-              example: true
+              deprecated: true
+              description: Legacy flag that always requests 3DS. Use `dynamic` instead.
+              example: false
             cancelOnFail:
               type: boolean
-              example: false
+              example: true
         address:
           type: object
           properties:
@@ -1351,8 +1364,10 @@ components:
           type: [string, 'null']
         threeDSecureId:
           type: string
+          description: Present only when a 3DS challenge is required. Mount the 3DS UI with it.
         threeDSecureTransactionId:
           type: string
+          description: Present only with `threeDSecureId`. Send both to `POST /init/3ds`.
 
       required:
         - status
