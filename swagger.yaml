@@ -325,6 +325,50 @@ paths:
               schema:
                 '$ref': '#/components/schemas/Error'
 
+  '/submit':
+    post:
+      tags:
+        - subscription
+      operationId: 'submitSubscription'
+      description: >
+        Records a subscription from a Paysight widget response (the charge has
+        already run in the widget). Returns the portal redirect URL on success.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              '$ref': '#/components/schemas/SubscriptionSubmitBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/SubscriptionSubmitResponse'
+        '400':
+          description: >
+            Client error. Invalid bodies return Error; a missing transactionId
+            or subscribeSuccess false returns SubscriptionSubmitResponse with
+            redirectUrl null.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - '$ref': '#/components/schemas/SubscriptionSubmitResponse'
+                  - '$ref': '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Error'
+
   '/cancel':
     post:
       parameters:
@@ -1383,6 +1427,137 @@ components:
         - transactionId
         - mid
         - amount
+        - redirectUrl
+
+    SubscriptionSubmitBody:
+      type: object
+      properties:
+        paysightSession:
+          type: string
+          minLength: 1
+        partnerSession:
+          type: string
+          minLength: 1
+        subscribeSuccess:
+          type: boolean
+        chargeSuccess:
+          type: boolean
+        info:
+          type: string
+        error:
+          type: string
+        email:
+          type: string
+          format: email
+        orderId:
+          type: number
+          exclusiveMinimum: 0
+        mid:
+          type: string
+          minLength: 1
+        merchantAccountId:
+          type: number
+          exclusiveMinimum: 0
+        transactionId:
+          type: string
+          minLength: 1
+          description: Optional in the schema, but without it the call returns 400.
+        threeDSecureId:
+          type: string
+          minLength: 1
+        amount:
+          type: number
+          minimum: 0
+        statusId:
+          type: number
+        declineSalvage:
+          type: boolean
+        midPortalUrl:
+          type: string
+          format: uri
+        card:
+          type: object
+          properties:
+            bin:
+              type: string
+              minLength: 6
+              maxLength: 8
+            lastFour:
+              type: string
+              minLength: 4
+              maxLength: 4
+            brand:
+              type: string
+              minLength: 1
+          required:
+            - bin
+            - lastFour
+            - brand
+        customer:
+          type: object
+          properties:
+            firstName:
+              type: string
+              minLength: 1
+            lastName:
+              type: string
+              minLength: 1
+            country:
+              type: string
+              minLength: 2
+              maxLength: 2
+              description: ISO 3166-1 alpha-2
+            email:
+              type: string
+              format: email
+          required:
+            - firstName
+            - country
+            - email
+        extra:
+          type: object
+          properties:
+            currency:
+              type: string
+              minLength: 3
+              maxLength: 3
+            locale:
+              type: string
+              minLength: 1
+            ecom:
+              type: string
+              minLength: 1
+              description: Only present on ecommerce checkouts
+          required:
+            - currency
+            - locale
+      required:
+        - paysightSession
+        - subscribeSuccess
+        - chargeSuccess
+        - info
+        - error
+        - email
+        - orderId
+        - mid
+        - merchantAccountId
+        - amount
+        - statusId
+        - declineSalvage
+        - midPortalUrl
+        - card
+        - customer
+        - extra
+
+    SubscriptionSubmitResponse:
+      type: object
+      properties:
+        status:
+          type: number
+        redirectUrl:
+          type: ['string', 'null']
+      required:
+        - status
         - redirectUrl
 
     SubscriptionValidate3DSBody:
